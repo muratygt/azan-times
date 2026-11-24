@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14141c">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Azan">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Azan Times</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@200;300;500&display=swap">
+<style>
+/* Layout: one full-height dusk scene per tab, content in a 520px column, tab bar pinned to the bottom. */
+:root {
+  --bg: #14141c;
+  --sky-top: #2e2f5b;
+  --sky-mid: #8a6a86;
+  --sky-low: #d9876a;
+  --panel: rgba(70, 48, 52, 0.62);
+  --panel-solid: #221d2b;
+  --fg: #f6efe9;
+  --muted: #bdb1b7;
+  --accent: #ff7a59;
+  --ok: #5ccb8a;
+  --line: rgba(255, 255, 255, 0.14);
+  --font-d: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
+  --font-b: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-b);
+  font-size: 15px;
+  line-height: 1.4;
+}
+* { box-sizing: border-box; }
+.wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  position: relative;
+  z-index: 2;
+}
+.view { min-height: 100dvh; position: relative; padding-bottom: 110px; overflow: hidden; }
+.scene {
+  background: linear-gradient(180deg, var(--sky-top) 0%, #4a3f6b 18%, var(--sky-mid) 36%, var(--sky-low) 58%, #3a2a3e 74%, #14141c 100%);
+}
+.skyline { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 46%; z-index: 1; }
+
+.top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding-top: 14px; }
+.city { font-size: 1.45rem; font-weight: 500; }
+.citybtn { background: none; border: 0; color: inherit; font-family: inherit; padding: 0; text-align: left; cursor: pointer; }
+.citybtn::after { content: " \25BE"; font-size: 0.75em; color: var(--muted); }
+.picker {
+  position: fixed; inset: 0; z-index: 30; background: rgba(12, 11, 20, 0.96); overflow: auto;
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.picker-in { max-width: 520px; margin: 0 auto; }
+.picker-head { display: flex; gap: 10px; position: sticky; top: 0; padding-bottom: 10px; background: rgba(12, 11, 20, 0.96); }
+.picker-head input { flex: 1; }
+.pitem { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: inherit; font-size: 1.05rem; padding: 14px 4px; cursor: pointer; }
+.pitem small { color: var(--muted); font-size: 0.8rem; flex: none; }
+.pitem.on { color: var(--accent); }
+.sub { color: var(--muted); font-size: 0.9rem; }
+.tzchip { font-size: 0.85rem; color: var(--muted); text-align: right; min-width: 0; }
+
+.hero { text-align: center; padding: 22px 0 18px; }
+.label { font-size: 1.05rem; letter-spacing: 0.04em; color: #fff; opacity: 0.92; }
+.clock { font-family: var(--font-d); font-weight: 200; font-size: clamp(3.6rem, 19vw, 6.4rem); line-height: 1; display: flex; justify-content: center; align-items: flex-start; gap: 0.1em; font-variant-numeric: tabular-nums; }
+.clock .u { display: flex; flex-direction: column; align-items: center; }
+.clock .u small { font-family: var(--font-b); font-size: 0.9rem; font-weight: 400; color: var(--muted); margin-top: 6px; }
+.clock .sec > span { font-size: 0.5em; color: var(--accent); font-weight: 300; margin-top: 0.5em; }
+.colon { font-size: 0.6em; opacity: 0.8; margin-top: 0.1em; }
+.secs { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 0.85rem; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+@media (prefers-reduced-motion: no-preference) { .dot { animation: pulse 1.2s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.card { background: var(--panel); border-radius: 12px; backdrop-filter: blur(4px); }
+.prayers { padding: 8px 14px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.row .nm { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row.cur { color: var(--accent); }
+.row.dim { font-weight: 400; color: #e8dcd6; }
+.tag { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 99px; padding: 1px 7px; color: var(--muted); font-weight: 500; }
+
+.side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.date { text-align: center; padding: 18px 8px; }
+.date .big { font-family: var(--font-d); font-weight: 300; font-size: 3.4rem; line-height: 1; }
+.date .mo { font-size: 1.35rem; font-weight: 500; margin-top: 2px; overflow-wrap: anywhere; }
+.date .wd { font-size: 1.35rem; font-weight: 500; }
+.pill { background: var(--panel); border-radius: 10px; padding: 8px 6px; text-align: center; font-size: 0.82rem; line-height: 1.3; }
+.pill.warn { color: #ffd2c4; }
+
+/* Tab bar */
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: rgba(18, 17, 26, 0.94);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+}
+.nav-in { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tab { background: #2a2733; color: var(--muted); border: 0; border-radius: 14px; padding: 8px 4px 7px; font: inherit; font-size: 0.78rem; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+.tab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-selected="true"] { color: var(--fg); background: #3a3446; }
+.tab[aria-selected="true"] svg { stroke: var(--accent); }
+.tab:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Compass */
+.plain { background: #161618; }
+.ctitle { text-align: center; font-size: 1.15rem; font-weight: 500; padding-top: 18px; }
+.dialbox { width: min(92vw, 420px); margin: 14px auto 0; position: relative; }
+.dialbox svg { width: 100%; height: auto; display: block; }
+.readout { font-family: var(--font-d); font-weight: 200; font-size: 5.2rem; line-height: 1; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.turnhint { text-align: center; margin-top: 8px; font-size: 1.05rem; font-weight: 600; color: #ef8a6a; min-height: 1.4em; }
+.turnhint.ok { color: #5ccb8a; }
+.qinfo { text-align: center; margin-top: 14px; color: #e9e4e6; font-size: 0.95rem; }
+.ctrl { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; color: var(--muted); font-size: 0.88rem; }
+.ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
+.btn { background: #34303f; color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font: inherit; cursor: pointer; }
+.btn.pri { background: var(--accent); color: #1c1014; border-color: transparent; font-weight: 700; }
+
+/* Calendar + settings */
+.page { padding-top: 18px; }
+.page h1 { font-size: 1.4rem; font-weight: 500; margin: 0 0 12px; }
+.mhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.mhead .mt { font-weight: 500; font-size: 1.1rem; text-align: center; flex: 1; }
+.tbl { overflow-x: auto; border-radius: 12px; background: var(--panel-solid); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+th, td { padding: 8px 8px; text-align: center; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+td:first-child, th:first-child { text-align: left; position: sticky; left: 0; background: var(--panel-solid); }
+tr.today td { background: rgba(255, 122, 89, 0.16); color: #ffd9cd; }
+tr.today td:first-child { background: #3a2530; }
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { color: var(--muted); font-size: 0.82rem; letter-spacing: 0.03em; }
+select, input[type=text], input[type=number] { background: #2a2733; color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; width: 100%; min-width: 0; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #2a2733; border-radius: 10px; padding: 11px 12px; }
+.switch input { width: 20px; height: 20px; accent-color: var(--accent); }
+.note { color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+
+.adj { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.adj div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adj span { color: var(--muted); font-size: 0.72rem; }
+.adj input { padding: 9px 8px; text-align: center; }
+@media (max-width: 400px) {
+  .row { font-size: 1.3rem; }
+  .date .big { font-size: 2.8rem; }
+  .date .mo, .date .wd { font-size: 1.15rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #dial { transition: transform 0.12s linear; }
+}
+html, body { margin: 0; }
+.wrap { padding-top: env(safe-area-inset-top, 0px); }
+.wrap.page { padding-top: calc(18px + env(safe-area-inset-top, 0px)); }
+/* Netlify injects a "Powered by Netlify" badge in the bottom corner: lift the tab bar clear of it */
+.nav { bottom: calc(62px + env(safe-area-inset-bottom, 0px)); padding-bottom: 8px; border-radius: 18px 18px 0 0; }
+.nav::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: calc(62px + env(safe-area-inset-bottom, 0px)); background: rgba(18, 17, 26, 0.94); }
+.view { padding-bottom: 190px; }
+.toast { bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: min(88vw, 480px); background: #34303f; color: var(--fg); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); z-index: 40; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<main>
+  <!-- TIMES -->
+  <section id="v-times" class="view scene">
+    <div class="wrap">
+      <header class="top">
+        <div style="min-width:0">
+          <button class="city citybtn" id="city" type="button" aria-label="Change city">Dallas, TX area</button>
+          <div class="sub" id="sub"></div>
+        </div>
+        <div class="tzchip" id="tzchip"></div>
+      </header>
+      <div class="hero">
+        <div class="label" id="heroLabel">Next prayer</div>
+        <div class="clock">
+          <div class="u"><span id="cH">00</span><small>Hour</small></div>
+          <span class="colon">:</span>
+          <div class="u"><span id="cM">00</span><small>Minute</small></div>
+          <span class="colon">:</span>
+          <div class="u sec"><span id="cSec">00</span><small>Second</small></div>
+        </div>
+        <div class="secs"><span class="dot"></span><span id="cNow"></span></div>
+      </div>
+      <div class="grid">
+        <div class="card prayers" id="prayers"></div>
+        <div class="side">
+          <div class="card date" id="dateCard"></div>
+          <div class="pill" id="hijri"></div>
+          <div class="pill" id="kerahat"></div>
+        </div>
+      </div>
+    </div>
+    <svg class="skyline" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#1b1b3a"/>
+          <stop offset="1" stop-color="#0e0e22"/>
+        </linearGradient>
+      </defs>
+      <path fill="#0b0a16" d="M0 150 L0 132 L40 128 L70 134 L96 122 L96 90 L99 82 L102 90 L102 122 L112 122 A30 30 0 0 1 172 122 L184 122 L184 70 L187 60 L190 70 L190 122 L204 122 A22 22 0 0 1 248 122 L262 122 L262 84 L265 76 L268 84 L268 122 L300 130 L340 126 L400 134 L400 150 Z"/>
+      <rect y="150" width="400" height="50" fill="url(#water)"/>
+      <g fill="#ffd27a" opacity="0.8">
+        <rect x="120" y="126" width="2" height="2"/><rect x="132" y="128" width="2" height="2"/><rect x="146" y="126" width="2" height="2"/>
+        <rect x="210" y="128" width="2" height="2"/><rect x="226" y="127" width="2" height="2"/><rect x="278" y="130" width="2" height="2"/>
+      </g>
+      <g fill="#ffd27a" opacity="0.25">
+        <rect x="120" y="156" width="2" height="8"/><rect x="146" y="158" width="2" height="6"/><rect x="226" y="157" width="2" height="9"/><rect x="278" y="160" width="2" height="6"/>
+      </g>
+    </svg>
+  </section>
+
+  <!-- COMPASS -->
+  <section id="v-compass" class="view plain" hidden>
+    <div class="wrap">
+      <div class="ctitle">Qibla compass</div>
+      <div class="dialbox">
+        <svg viewBox="-200 -200 400 400" role="img" aria-label="Qibla compass dial">
+          <g id="dial"></g>
+          <rect x="-4" y="-196" width="8" height="46" rx="4" fill="#ef5350"/>
+          <rect x="-3.5" y="-172" width="7" height="26" rx="3" fill="#ef5350" opacity="0"/>
+          <g id="arL" opacity="0.25"><path d="M-52 40 L-82 40 M-68 24 L-84 40 L-68 56" fill="none" stroke="#ef8a6a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></g>
+          <g id="arR" opacity="0.25"><path d="M52 40 L82 40 M68 24 L84 40 L68 56" fill="none" stroke="#ef8a6a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></g>
+          <circle id="okc" cx="0" cy="40" r="26" fill="#2a2a2e"/>
+          <path id="okm" d="M-11 40 L-3 49 L12 31" fill="none" stroke="#161618" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="readout" id="heading">0°</div>
+      <div class="turnhint" id="turnHint" aria-live="polite">&nbsp;</div>
+      <div class="qinfo" id="qinfo"></div>
+      <div class="ctrl">
+        <button class="btn pri" id="btnSensor" type="button">Use my phone's compass</button>
+        <div id="sensorMsg">Turn until the Kaaba marker meets the red pointer.</div>
+        <label for="sldHeading" id="sldLabel">Preview heading</label>
+        <input id="sldHeading" type="range" min="0" max="359" value="0">
+      </div>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="v-calendar" class="view plain" hidden>
+    <div class="wrap page">
+      <h1>Monthly timetable</h1>
+      <div class="mhead">
+        <button class="btn" id="mPrev" type="button" aria-label="Previous month">&larr;</button>
+        <div class="mt" id="mTitle"></div>
+        <button class="btn" id="mNext" type="button" aria-label="Next month">&rarr;</button>
+      </div>
+      <div class="tbl"><table id="mTable"></table></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="v-settings" class="view plain" hidden>
+    <div class="wrap page">
+      <h1>Settings</h1>
+      <div class="form">
+        <div class="field"><label for="selCity">Location</label><select id="selCity"></select>
+          <p class="note" id="autoNote" hidden>Auto follows your phone's time zone and picks one central city for it, so times can be off by a few minutes, up to about half an hour in a wide zone. Pick your exact city for precise times. It updates by itself when your phone changes time zone, but not when you travel within one zone.</p></div>
+        <div id="custom" class="field" hidden>
+          <div class="two">
+            <div class="field"><label for="inLat">Latitude</label><input id="inLat" type="number" step="0.0001"></div>
+            <div class="field"><label for="inLon">Longitude</label><input id="inLon" type="number" step="0.0001"></div>
+          </div>
+          <div class="field"><label for="inTz">Time zone (IANA name)</label><input id="inTz" type="text" placeholder="America/Chicago"></div>
+        </div>
+        <div class="field"><label for="inDecl">Compass correction (degrees, true = magnetic + this)</label><input id="inDecl" type="number" step="0.5"><p class="note">Only affects the live compass. Dallas is roughly +3 to +4; check NOAA's magnetic declination calculator for your area.</p></div>
+        <div class="field"><label for="selMethod">Calculation method</label><select id="selMethod"></select></div>
+        <div class="field"><label for="selAsr">Asr calculation</label>
+          <select id="selAsr"><option value="1">Standard (Shafi'i, Maliki, Hanbali)</option><option value="2">Hanafi</option></select></div>
+        <div class="field"><label>Minute adjustments (precautions)</label>
+          <div class="adj">
+            <div><span>Fajr</span><input id="adj0" type="number" step="1" aria-label="Fajr adjustment in minutes"></div>
+            <div><span>Sunrise</span><input id="adj1" type="number" step="1" aria-label="Sunrise adjustment in minutes"></div>
+            <div><span>Dhuhr</span><input id="adj2" type="number" step="1" aria-label="Dhuhr adjustment in minutes"></div>
+            <div><span>Asr</span><input id="adj3" type="number" step="1" aria-label="Asr adjustment in minutes"></div>
+            <div><span>Maghrib</span><input id="adj4" type="number" step="1" aria-label="Maghrib adjustment in minutes"></div>
+            <div><span>Isha</span><input id="adj5" type="number" step="1" aria-label="Isha adjustment in minutes"></div>
+          </div>
+        </div>
+        <div class="field"><label for="selFmt">Clock</label>
+          <select id="selFmt"><option value="24">24-hour</option><option value="12">12-hour</option></select></div>
+        <label class="switch" for="chkSound"><span>Play a chime at prayer time<br><span class="note">Works while this page is open.</span></span><input id="chkSound" type="checkbox"></label>
+        <button class="btn" id="btnTest" type="button">Test chime</button>
+        <p class="note">Times are calculated on your device from the coordinates above. Check them against your local mosque before relying on them. Forbidden (kerahat) windows are approximate: about 20 minutes after sunrise, 6 minutes before Dhuhr and 25 minutes before Maghrib.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="picker" class="picker" hidden role="dialog" aria-label="Choose city">
+  <div class="picker-in">
+    <div class="picker-head">
+      <input id="pickQ" type="text" placeholder="Search city" autocomplete="off" aria-label="Search city">
+      <button class="btn" id="pickX" type="button">Close</button>
+    </div>
+    <div id="pickList"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden role="status"></div>
+
+<nav class="nav" aria-label="Sections">
+  <div class="nav-in" role="tablist">
+    <button class="tab" role="tab" data-v="times" aria-selected="true" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Times</button>
+    <button class="tab" role="tab" data-v="compass" aria-selected="false" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Compass</button>
+    <button class="tab" role="tab" data-v="calendar" aria-selected="false" type="button">
+      <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Calendar</button>
+    <button class="tab" role="tab" data-v="settings" aria-selected="false" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Settings</button>
+  </div>
+</nav>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Config ----------
+  var CITIES = {
+    'Auto (follow phone time zone)': 'auto',
+    'My location (GPS)': 'gps',
+    'Wylie, TX (Collin County)': { lat: 33.0151, lon: -96.5389, tz: 'America/Chicago' },
+    'Plano, TX': { lat: 33.0198, lon: -96.6989, tz: 'America/Chicago' },
+    'Frisco, TX': { lat: 33.1507, lon: -96.8236, tz: 'America/Chicago' },
+    'Dallas, TX': { lat: 32.7767, lon: -96.797, tz: 'America/Chicago' },
+    'Houston, TX': { lat: 29.7604, lon: -95.3698, tz: 'America/Chicago' },
+    'Austin, TX': { lat: 30.2672, lon: -97.7431, tz: 'America/Chicago' },
+    'Chicago, IL': { lat: 41.8781, lon: -87.6298, tz: 'America/Chicago' },
+    'New York, NY': { lat: 40.7128, lon: -74.006, tz: 'America/New_York' },
+    'Washington, DC': { lat: 38.9072, lon: -77.0369, tz: 'America/New_York' },
+    'Atlanta, GA': { lat: 33.749, lon: -84.388, tz: 'America/New_York' },
+    'Denver, CO': { lat: 39.7392, lon: -104.9903, tz: 'America/Denver' },
+    'Phoenix, AZ': { lat: 33.4484, lon: -112.074, tz: 'America/Phoenix' },
+    'Los Angeles, CA': { lat: 34.0522, lon: -118.2437, tz: 'America/Los_Angeles' },
+    'Toronto, Canada': { lat: 43.6532, lon: -79.3832, tz: 'America/Toronto' },
+    'London, UK': { lat: 51.5072, lon: -0.1276, tz: 'Europe/London' },
+    'Istanbul, Turkey': { lat: 41.0082, lon: 28.9784, tz: 'Europe/Istanbul' },
+    'Ankara, Turkey': { lat: 39.9334, lon: 32.8597, tz: 'Europe/Istanbul' },
+    'Izmir, Turkey': { lat: 38.4237, lon: 27.1428, tz: 'Europe/Istanbul' },
+    'Makkah, Saudi Arabia': { lat: 21.4225, lon: 39.8262, tz: 'Asia/Riyadh' },
+    'Madinah, Saudi Arabia': { lat: 24.4672, lon: 39.6111, tz: 'Asia/Riyadh' },
+    'Dubai, UAE': { lat: 25.2048, lon: 55.2708, tz: 'Asia/Dubai' },
+    'Cairo, Egypt': { lat: 30.0444, lon: 31.2357, tz: 'Africa/Cairo' },
+    'Custom coordinates': null
+  };
+  // Auto mode: one central city per time zone. Approximate by design.
+  var TZ_COORDS = {
+    'America/Chicago': [32.7767, -96.797, 'Dallas, TX area'],
+    'America/New_York': [40.7128, -74.006, 'New York, NY'],
+    'America/Detroit': [42.3314, -83.0458, 'Detroit, MI'],
+    'America/Toronto': [43.6532, -79.3832, 'Toronto, Canada'],
+    'America/Denver': [39.7392, -104.9903, 'Denver, CO'],
+    'America/Phoenix': [33.4484, -112.074, 'Phoenix, AZ'],
+    'America/Los_Angeles': [34.0522, -118.2437, 'Los Angeles, CA'],
+    'America/Vancouver': [49.2827, -123.1207, 'Vancouver, Canada'],
+    'America/Anchorage': [61.2181, -149.9003, 'Anchorage, AK'],
+    'Pacific/Honolulu': [21.3069, -157.8583, 'Honolulu, HI'],
+    'America/Mexico_City': [19.4326, -99.1332, 'Mexico City'],
+    'America/Sao_Paulo': [-23.5505, -46.6333, 'Sao Paulo'],
+    'Europe/London': [51.5072, -0.1276, 'London, UK'],
+    'Europe/Paris': [48.8566, 2.3522, 'Paris, France'],
+    'Europe/Berlin': [52.52, 13.405, 'Berlin, Germany'],
+    'Europe/Madrid': [40.4168, -3.7038, 'Madrid, Spain'],
+    'Europe/Rome': [41.9028, 12.4964, 'Rome, Italy'],
+    'Europe/Amsterdam': [52.3676, 4.9041, 'Amsterdam'],
+    'Europe/Istanbul': [41.0082, 28.9784, 'Istanbul, Turkey'],
+    'Asia/Istanbul': [41.0082, 28.9784, 'Istanbul, Turkey'],
+    'Africa/Cairo': [30.0444, 31.2357, 'Cairo, Egypt'],
+    'Africa/Casablanca': [33.5731, -7.5898, 'Casablanca'],
+    'Africa/Lagos': [6.5244, 3.3792, 'Lagos'],
+    'Asia/Riyadh': [24.7136, 46.6753, 'Riyadh, Saudi Arabia'],
+    'Asia/Qatar': [25.2854, 51.531, 'Doha, Qatar'],
+    'Asia/Dubai': [25.2048, 55.2708, 'Dubai, UAE'],
+    'Asia/Tehran': [35.6892, 51.389, 'Tehran'],
+    'Asia/Karachi': [24.8607, 67.0011, 'Karachi'],
+    'Asia/Kolkata': [28.6139, 77.209, 'Delhi, India'],
+    'Asia/Dhaka': [23.8103, 90.4125, 'Dhaka'],
+    'Asia/Jakarta': [-6.2088, 106.8456, 'Jakarta'],
+    'Asia/Kuala_Lumpur': [3.139, 101.6869, 'Kuala Lumpur'],
+    'Asia/Singapore': [1.3521, 103.8198, 'Singapore'],
+    'Asia/Shanghai': [31.2304, 121.4737, 'Shanghai'],
+    'Asia/Tokyo': [35.6762, 139.6503, 'Tokyo'],
+    'Asia/Seoul': [37.5665, 126.978, 'Seoul'],
+    'Australia/Sydney': [-33.8688, 151.2093, 'Sydney']
+  };
+  // More US cities for the picker (zones: E, C, M, A = Arizona, P).
+  (function () {
+    var Z = { E: 'America/New_York', C: 'America/Chicago', M: 'America/Denver', A: 'America/Phoenix', P: 'America/Los_Angeles' };
+    var custom = CITIES['Custom coordinates'];
+    delete CITIES['Custom coordinates'];
+    [
+      ['Fort Worth, TX', 32.7555, -97.3308, 'C'], ['McKinney, TX', 33.1972, -96.6398, 'C'], ['Allen, TX', 33.1032, -96.6706, 'C'],
+      ['Richardson, TX', 32.9483, -96.7299, 'C'], ['Irving, TX', 32.814, -96.9489, 'C'], ['Arlington, TX', 32.7357, -97.1081, 'C'],
+      ['Garland, TX', 32.9126, -96.6389, 'C'], ['Denton, TX', 33.2148, -97.1331, 'C'], ['Sugar Land, TX', 29.5994, -95.6141, 'C'],
+      ['The Woodlands, TX', 30.1658, -95.4613, 'C'], ['San Antonio, TX', 29.4241, -98.4936, 'C'], ['El Paso, TX', 31.7619, -106.485, 'M'],
+      ['Lubbock, TX', 33.5779, -101.8552, 'C'], ['Corpus Christi, TX', 27.8006, -97.3964, 'C'], ['Waco, TX', 31.5493, -97.1467, 'C'],
+      ['Oklahoma City, OK', 35.4676, -97.5164, 'C'], ['Tulsa, OK', 36.154, -95.9928, 'C'], ['Kansas City, MO', 39.0997, -94.5786, 'C'],
+      ['St. Louis, MO', 38.627, -90.1994, 'C'], ['Minneapolis, MN', 44.9778, -93.265, 'C'], ['Milwaukee, WI', 43.0389, -87.9065, 'C'],
+      ['Nashville, TN', 36.1627, -86.7816, 'C'], ['Memphis, TN', 35.1495, -90.049, 'C'], ['New Orleans, LA', 29.9511, -90.0715, 'C'],
+      ['Little Rock, AR', 34.7465, -92.2896, 'C'], ['Birmingham, AL', 33.5186, -86.8104, 'C'], ['Des Moines, IA', 41.5868, -93.625, 'C'],
+      ['Boston, MA', 42.3601, -71.0589, 'E'], ['Philadelphia, PA', 39.9526, -75.1652, 'E'], ['Newark, NJ', 40.7357, -74.1724, 'E'],
+      ['Miami, FL', 25.7617, -80.1918, 'E'], ['Orlando, FL', 28.5384, -81.3789, 'E'], ['Tampa, FL', 27.9506, -82.4572, 'E'],
+      ['Charlotte, NC', 35.2271, -80.8431, 'E'], ['Raleigh, NC', 35.7796, -78.6382, 'E'], ['Richmond, VA', 37.5407, -77.436, 'E'],
+      ['Detroit, MI', 42.3314, -83.0458, 'E'], ['Columbus, OH', 39.9612, -82.9988, 'E'], ['Cleveland, OH', 41.4993, -81.6944, 'E'],
+      ['Pittsburgh, PA', 40.4406, -79.9959, 'E'], ['Indianapolis, IN', 39.7684, -86.1581, 'E'], ['Louisville, KY', 38.2527, -85.7585, 'E'],
+      ['Salt Lake City, UT', 40.7608, -111.891, 'M'], ['Albuquerque, NM', 35.0844, -106.6504, 'M'], ['Boise, ID', 43.615, -116.2023, 'M'],
+      ['San Francisco, CA', 37.7749, -122.4194, 'P'], ['San Jose, CA', 37.3382, -121.8863, 'P'], ['Sacramento, CA', 38.5816, -121.4944, 'P'],
+      ['San Diego, CA', 32.7157, -117.1611, 'P'], ['Seattle, WA', 47.6062, -122.3321, 'P'], ['Portland, OR', 45.5152, -122.6784, 'P'],
+      ['Las Vegas, NV', 36.1699, -115.1398, 'P']
+    ].forEach(function (c) { if (!CITIES[c[0]]) CITIES[c[0]] = { lat: c[1], lon: c[2], tz: Z[c[3]] }; });
+    CITIES['Custom coordinates'] = custom;
+  })();
+  var METHODS = {
+    ISNA: { name: 'ISNA (North America)', fajr: 15, isha: 15 },
+    MWL: { name: 'Muslim World League', fajr: 18, isha: 17 },
+    DIYANET: { name: 'Diyanet (Turkey)', fajr: 18, isha: 17 },
+    UMM: { name: 'Umm al-Qura (Makkah)', fajr: 18.5, ishaMin: 90 },
+    EGYPT: { name: 'Egyptian General Authority', fajr: 19.5, isha: 17.5 },
+    KARACHI: { name: 'Univ. of Islamic Sciences, Karachi', fajr: 18, isha: 18 }
+  };
+  var NAMES = { fajr: 'Fajr', sunrise: 'Sunrise', dhuhr: 'Dhuhr', asr: 'Asr', maghrib: 'Maghrib', isha: 'Isha' };
+  var ORDER = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  var FIVE = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  var KAABA = { lat: 21.4225, lon: 39.8262 };
+  var KEY = 'azan-times-settings';
+
+  var browserTz = 'America/Chicago';
+  try { browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || browserTz; } catch (e) {}
+
+  var S = { city: 'Auto (follow phone time zone)', auto: true, gps: false, decl: 0, place: 'Dallas, TX area', lat: 32.7767, lon: -96.797, tz: 'America/Chicago', method: 'MWL', asr: 2, h24: true, sound: false, adj: [0, -7, 5, 4, 7, 0] };
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved && typeof saved === 'object') { for (var k in saved) { if (k in S) S[k] = saved[k]; } }
+    if (!Array.isArray(S.adj) || S.adj.length !== 6) S.adj = [0, -7, 5, 4, 7, 0];
+  } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  // ---------- Prayer time maths ----------
+  var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  function sin(d) { return Math.sin(d * D2R); }
+  function cos(d) { return Math.cos(d * D2R); }
+  function tan(d) { return Math.tan(d * D2R); }
+  function asin(x) { return Math.asin(x) * R2D; }
+  function acos(x) { return Math.acos(x) * R2D; }
+  function atan2(y, x) { return Math.atan2(y, x) * R2D; }
+  function fix(a, b) { a = a - b * Math.floor(a / b); return a < 0 ? a + b : a; }
+
+  function julian(y, m, d) {
+    if (m <= 2) { y -= 1; m += 12; }
+    var A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+    return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5;
+  }
+  function sunPos(jd) {
+    var D = jd - 2451545.0;
+    var g = fix(357.529 + 0.98560028 * D, 360);
+    var q = fix(280.459 + 0.98564736 * D, 360);
+    var L = fix(q + 1.915 * sin(g) + 0.020 * sin(2 * g), 360);
+    var e = 23.439 - 0.00000036 * D;
+    var RA = fix(atan2(cos(e) * sin(L), cos(L)) / 15, 24);
+    return { decl: asin(sin(e) * sin(L)), eqt: q / 15 - RA };
+  }
+
+  var cache = {};
+  function compute(y, m, d) {
+    var key = [y, m, d, S.lat, S.lon, S.method, S.asr, S.adj.join(',')].join('|');
+    if (cache[key]) return cache[key];
+    var meth = METHODS[S.method] || METHODS.ISNA;
+    var lat = S.lat, lon = S.lon;
+    var jd = julian(y, m, d) - lon / (15 * 24);
+    function mid(t) { return fix(12 - sunPos(jd + t).eqt, 24); }
+    function atAngle(angle, t, ccw) {
+      var decl = sunPos(jd + t).decl;
+      var v = (-sin(angle) - sin(decl) * sin(lat)) / (cos(decl) * cos(lat));
+      if (Math.abs(v) > 1) return NaN;
+      var dt = acos(v) / 15;
+      return mid(t) + (ccw ? -dt : dt);
+    }
+    function asrT(factor, t) {
+      var decl = sunPos(jd + t).decl;
+      var angle = -(Math.atan(1 / (factor + tan(Math.abs(lat - decl)))) * R2D);
+      return atAngle(angle, t, false);
+    }
+    var base = Date.UTC(y, m - 1, d);
+    function toDate(h, i) {
+      if (isNaN(h)) return new Date(NaN);
+      var ms = base + (h - lon / 15) * 3600000;
+      var adj = (+S.adj[i] || 0) * 60000;
+      return new Date(Math.ceil(ms / 60000) * 60000 + adj);
+    }
+    var maghribH = atAngle(0.833, 18 / 24, false);
+    var out = {
+      fajr: toDate(atAngle(meth.fajr, 5 / 24, true), 0),
+      sunrise: toDate(atAngle(0.833, 6 / 24, true), 1),
+      dhuhr: toDate(mid(12 / 24), 2),
+      asr: toDate(asrT(+S.asr, 13 / 24), 3),
+      maghrib: toDate(maghribH, 4),
+      isha: toDate(meth.ishaMin ? maghribH + meth.ishaMin / 60 : atAngle(meth.isha, 18 / 24, false), 5)
+    };
+    cache[key] = out;
+    return out;
+  }
+
+  function ymdIn(date, tz) {
+    var p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    var o = {};
+    p.forEach(function (x) { o[x.type] = x.value; });
+    return { y: +o.year, m: +o.month, d: +o.day };
+  }
+  function addDays(c, n) {
+    var t = new Date(Date.UTC(c.y, c.m - 1, c.d + n));
+    return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
+  }
+  function forDay(c) { return compute(c.y, c.m, c.d); }
+
+  var fmtCache = {};
+  function fmt(date) {
+    if (isNaN(date)) return '--:--';
+    var k = S.tz + S.h24;
+    if (!fmtCache[k]) {
+      fmtCache[k] = new Intl.DateTimeFormat(S.h24 ? 'en-GB' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: !S.h24, timeZone: S.tz });
+    }
+    return fmtCache[k].format(date);
+  }
+  var liveCache = {};
+  function liveFmt(d) {
+    var k = S.tz + S.h24;
+    if (!liveCache[k]) {
+      liveCache[k] = new Intl.DateTimeFormat(S.h24 ? 'en-GB' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !S.h24, timeZone: S.tz });
+    }
+    return liveCache[k].format(d);
+  }
+  function curTz() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || browserTz; } catch (e) { return browserTz; }
+  }
+  function applyAuto() {
+    var z = curTz(), t = TZ_COORDS[z];
+    S.auto = true; S.city = 'Auto (follow phone time zone)'; S.tz = z;
+    if (t) { S.lat = t[0]; S.lon = t[1]; S.place = t[2]; }
+    else { S.place = z.split('/').pop().replace(/_/g, ' ') + ' (pick a city)'; }
+  }
+  function safeTz() {
+    try { new Intl.DateTimeFormat('en', { timeZone: S.tz }); } catch (e) { S.tz = browserTz; }
+  }
+
+  // ---------- Qibla ----------
+  function qibla() {
+    var dl = (KAABA.lon - S.lon);
+    var y = sin(dl) * cos(KAABA.lat);
+    var x = cos(S.lat) * sin(KAABA.lat) - sin(S.lat) * cos(KAABA.lat) * cos(dl);
+    var b = fix(atan2(y, x), 360);
+    var R = 6371, dLat = (KAABA.lat - S.lat) * D2R, dLon = dl * D2R;
+    var a = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(S.lat * D2R) * Math.cos(KAABA.lat * D2R) * Math.pow(Math.sin(dLon / 2), 2);
+    return { bearing: b, km: 2 * R * Math.asin(Math.sqrt(a)) };
+  }
+
+  // ---------- DOM helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  // ---------- Times view ----------
+  var lastKey = '';
+  function analyze(now) {
+    var c = ymdIn(now, S.tz);
+    var T = forDay(c), Tm = forDay(addDays(c, 1));
+    var cur = 'isha';
+    FIVE.forEach(function (n) { if (now >= T[n]) cur = n; });
+    var next = null;
+    for (var i = 0; i < FIVE.length; i++) { if (T[FIVE[i]] > now) { next = { n: FIVE[i], t: T[FIVE[i]] }; break; } }
+    if (!next) next = { n: 'fajr', t: Tm.fajr };
+    var min = 60000;
+    var wins = [
+      [T.sunrise, new Date(+T.sunrise + 20 * min), 'sunrise'],
+      [new Date(+T.dhuhr - 6 * min), T.dhuhr, 'zenith'],
+      [new Date(+T.maghrib - 25 * min), T.maghrib, 'sunset']
+    ];
+    var active = null, upcoming = null;
+    wins.forEach(function (w) {
+      if (now >= w[0] && now < w[1]) active = w;
+      else if (w[0] > now && !upcoming) upcoming = w;
+    });
+    if (!upcoming) upcoming = [Tm.sunrise, new Date(+Tm.sunrise + 20 * min), 'sunrise'];
+    return { c: c, T: T, cur: cur, next: next, active: active, upcoming: upcoming };
+  }
+
+  function hijriStr(now, opt) {
+    try {
+      return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', Object.assign({ timeZone: S.tz }, opt)).format(now);
+    } catch (e) { return ''; }
+  }
+
+  var played = {};
+  function tickTimes() {
+    var now = new Date();
+    if (S.auto && curTz() !== S.tz) {
+      applyAuto(); safeTz(); fmtCache = {}; lastKey = ''; save(); refreshQibla();
+      if (!$('v-calendar').hidden) renderCalendar();
+    }
+    if (S.gps && curTz() !== S.tz) { S.tz = curTz(); safeTz(); fmtCache = {}; lastKey = ''; save(); }
+    var a = analyze(now);
+    var key = [a.c.y, a.c.m, a.c.d, a.cur, a.next.n, S.tz, S.h24, S.method, S.asr, S.lat, S.lon].join('|');
+    if (key !== lastKey) {
+      lastKey = key;
+      $('city').textContent = (S.auto || S.gps) ? S.place : S.city.replace(/ \(Collin County\)/, ' · Collin County');
+      $('sub').textContent = S.lat.toFixed(3) + '°, ' + S.lon.toFixed(3) + '°';
+      $('tzchip').textContent = S.tz.replace('_', ' ');
+      var html = '';
+      ORDER.forEach(function (n) {
+        var cls = 'row' + (n === 'sunrise' ? ' dim' : '') + (n === a.cur ? ' cur' : '');
+        var tag = (n === a.next.n && n !== a.cur) ? '<span class="tag">next</span>' : '';
+        html += '<div class="' + cls + '"><span class="nm">' + NAMES[n] + tag + '</span><span>' + fmt(a.T[n]) + '</span></div>';
+      });
+      $('prayers').innerHTML = html;
+      var wk = new Intl.DateTimeFormat('en-US', { timeZone: S.tz, weekday: 'long' }).format(now);
+      var mo = new Intl.DateTimeFormat('en-US', { timeZone: S.tz, month: 'long' }).format(now);
+      $('dateCard').innerHTML = '<div class="big">' + a.c.d + '</div><div class="mo">' + mo + '</div><div class="wd">' + wk + '</div>';
+      $('hijri').textContent = hijriStr(now, { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    // countdown
+    var target, label;
+    if (a.active) { target = a.active[1]; label = 'Forbidden time'; }
+    else { target = a.next.t; label = 'Next: ' + NAMES[a.next.n]; }
+    var diff = Math.max(0, target - now);
+    var h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+    $('heroLabel').textContent = label;
+    $('cH').textContent = pad(h);
+    $('cM').textContent = pad(m);
+    $('cSec').textContent = pad(s);
+    $('cNow').textContent = 'Live · ' + liveFmt(now) + (S.auto ? ' · auto' : S.gps ? ' · GPS' : '');
+    var kp = $('kerahat');
+    if (a.active) {
+      var left = Math.max(1, Math.ceil((a.active[1] - now) / 60000));
+      kp.className = 'pill warn';
+      kp.innerHTML = 'Kerahat ends<br>' + left + ' min';
+    } else {
+      kp.className = 'pill';
+      kp.innerHTML = 'Next kerahat<br>' + fmt(a.upcoming[0]);
+    }
+    // chime
+    if (S.sound) {
+      FIVE.forEach(function (n) {
+        var t = a.T[n];
+        if (Math.abs(now - t) < 1500 && !played[n + +t]) { played[n + +t] = 1; chime(); }
+      });
+    }
+  }
+
+  // ---------- Chime ----------
+  var audio = null;
+  function chime() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audio = audio || new AC();
+      if (audio.state === 'suspended') audio.resume();
+      var t0 = audio.currentTime;
+      [392, 494, 587, 784].forEach(function (f, i) {
+        var o = audio.createOscillator(), g = audio.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        var st = t0 + i * 0.4;
+        g.gain.setValueAtTime(0.0001, st);
+        g.gain.linearRampToValueAtTime(0.22, st + 0.06);
+        g.gain.exponentialRampToValueAtTime(0.0001, st + 1.5);
+        o.connect(g); g.connect(audio.destination);
+        o.start(st); o.stop(st + 1.6);
+      });
+    } catch (e) {}
+  }
+
+  // ---------- Compass ----------
+  var heading = 0, sensorOn = false, Q = qibla();
+  var labelEls = [], kaabaG = null;
+  function buildDial() {
+    var NS = 'http://www.w3.org/2000/svg';
+    var g = $('dial');
+    g.innerHTML = '';
+    labelEls = [];
+    var ring = document.createElementNS(NS, 'circle');
+    ring.setAttribute('r', '168'); ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', 'none');
+    g.appendChild(ring);
+    for (var a = 0; a < 360; a += 5) {
+      var big = a % 30 === 0;
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', 0); ln.setAttribute('x2', 0);
+      ln.setAttribute('y1', -176); ln.setAttribute('y2', big ? -162 : -168);
+      ln.setAttribute('stroke', '#cfcfd4'); ln.setAttribute('stroke-width', big ? 1.6 : 1.1);
+      ln.setAttribute('opacity', big ? 0.9 : 0.55);
+      ln.setAttribute('transform', 'rotate(' + a + ')');
+      g.appendChild(ln);
+    }
+    var cards = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+    for (var d = 0; d < 360; d += 30) {
+      var t = document.createElementNS(NS, 'text');
+      var isCard = cards[d] !== undefined;
+      t.textContent = isCard ? cards[d] : String(d);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'central');
+      t.setAttribute('fill', '#f2f2f4');
+      t.setAttribute('font-size', isCard ? 24 : 17);
+      t.setAttribute('font-weight', isCard ? 700 : 400);
+      t.setAttribute('font-family', 'DM Sans, system-ui, sans-serif');
+      g.appendChild(t);
+      labelEls.push({ el: t, a: d, r: isCard ? 138 : 140 });
+    }
+    // Kaaba marker, placed on the dial at the qibla bearing
+    kaabaG = document.createElementNS(NS, 'g');
+    var disc = document.createElementNS(NS, 'circle');
+    disc.setAttribute('r', '30'); disc.setAttribute('fill', '#ecebe9');
+    kaabaG.appendChild(disc);
+    var cube = document.createElementNS(NS, 'g');
+    cube.setAttribute('fill', 'none'); cube.setAttribute('stroke', '#2c2418'); cube.setAttribute('stroke-width', '2.2'); cube.setAttribute('stroke-linejoin', 'round');
+    cube.innerHTML = '<path d="M-15 -12 L0 -17 L15 -12 L15 12 L0 17 L-15 12 Z"/><path d="M-15 -12 L0 -7 L15 -12"/><path d="M0 -7 L0 17"/><path d="M-12 -2 L-4 0.5" stroke-dasharray="2 2"/>';
+    kaabaG.appendChild(cube);
+    g.appendChild(kaabaG);
+    updateDial();
+  }
+  function updateDial() {
+    $('dial').setAttribute('transform', 'rotate(' + (-heading) + ')');
+    labelEls.forEach(function (l) {
+      l.el.setAttribute('transform', 'rotate(' + l.a + ') translate(0,-' + l.r + ') rotate(' + (heading - l.a) + ')');
+    });
+    // Kaaba sits on the dial at the qibla bearing, kept upright on screen
+    kaabaG.setAttribute('transform', 'rotate(' + Q.bearing + ') translate(0,-96) rotate(' + (heading - Q.bearing) + ')');
+    var diff = ((Q.bearing - heading + 540) % 360) - 180;
+    var ok = Math.abs(diff) <= 3;
+    $('okc').setAttribute('fill', ok ? '#5ccb8a' : '#2a2a2e');
+    $('okm').setAttribute('stroke', ok ? '#ffffff' : '#161618');
+    $('okm').setAttribute('opacity', ok ? 1 : 0.5);
+    $('heading').textContent = Math.round(heading) + '°';
+    var right = diff > 3, left = diff < -3;
+    $('arR').setAttribute('opacity', right ? 1 : 0.18);
+    $('arL').setAttribute('opacity', left ? 1 : 0.18);
+    var th = $('turnHint');
+    th.className = 'turnhint' + (ok ? ' ok' : '');
+    th.textContent = ok ? 'Facing the Qibla' : (right ? 'Turn right ' : 'Turn left ') + Math.round(Math.abs(diff)) + '°';
+  }
+  function refreshQibla() {
+    Q = qibla();
+    var dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    $('qinfo').innerHTML = 'Qibla Angle : ' + Math.round(Q.bearing) + '° (' + dirs[Math.round(Q.bearing / 22.5) % 16] + ', from true north)<br>Distance : ' + Q.km.toFixed(1) + ' km';
+    if (kaabaG) updateDial();
+  }
+  function setHeading(h) {
+    heading = fix(h, 360);
+    updateDial();
+  }
+  function onOrient(e) {
+    var h = null;
+    if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
+    else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+    else if (typeof e.alpha === 'number' && !sensorOn) h = 360 - e.alpha;
+    if (h === null || isNaN(h)) return;
+    h += (+S.decl || 0);
+    if (!sensorOn) {
+      sensorOn = true;
+      $('sldHeading').hidden = true; $('sldLabel').hidden = true;
+      $('sensorMsg').textContent = 'Compass active. Turn until the Kaaba marker meets the red pointer.';
+    }
+    setHeading(h);
+  }
+  function startSensor() {
+    var msg = $('sensorMsg');
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(function (r) {
+          if (r === 'granted') { attach(); } else { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; }
+        }).catch(function () { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; });
+      } else { attach(); }
+    } catch (e) { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; }
+    function attach() {
+      window.addEventListener('deviceorientationabsolute', onOrient, true);
+      window.addEventListener('deviceorientation', onOrient, true);
+      msg.textContent = 'Waiting for compass data...';
+      setTimeout(function () {
+        if (!sensorOn) msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload.";
+      }, 2500);
+    }
+  }
+
+  // ---------- Calendar ----------
+  var cal = null;
+  function renderCalendar() {
+    var now = new Date();
+    if (!cal) { var c0 = ymdIn(now, S.tz); cal = { y: c0.y, m: c0.m }; }
+    var title = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(Date.UTC(cal.y, cal.m - 1, 1)));
+    $('mTitle').textContent = title;
+    var days = new Date(Date.UTC(cal.y, cal.m, 0)).getUTCDate();
+    var today = ymdIn(now, S.tz);
+    var html = '<thead><tr><th>Day</th>';
+    ORDER.forEach(function (n) { html += '<th>' + NAMES[n] + '</th>'; });
+    html += '</tr></thead><tbody>';
+    for (var d = 1; d <= days; d++) {
+      var T = compute(cal.y, cal.m, d);
+      var wd = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short' }).format(new Date(Date.UTC(cal.y, cal.m - 1, d)));
+      var isToday = today.y === cal.y && today.m === cal.m && today.d === d;
+      html += '<tr' + (isToday ? ' class="today"' : '') + '><td>' + d + ' ' + wd + '</td>';
+      ORDER.forEach(function (n) { html += '<td>' + fmt(T[n]) + '</td>'; });
+      html += '</tr>';
+    }
+    $('mTable').innerHTML = html + '</tbody>';
+  }
+
+  // ---------- Settings ----------
+  function fillSettings() {
+    var sc = $('selCity'); sc.innerHTML = '';
+    Object.keys(CITIES).forEach(function (n) {
+      var o = document.createElement('option'); o.value = n; o.textContent = n; sc.appendChild(o);
+    });
+    sc.value = CITIES[S.city] === undefined ? 'Custom coordinates' : S.city;
+    var sm = $('selMethod'); sm.innerHTML = '';
+    Object.keys(METHODS).forEach(function (k) {
+      var o = document.createElement('option'); o.value = k; o.textContent = METHODS[k].name; sm.appendChild(o);
+    });
+    sm.value = S.method;
+    $('selAsr').value = String(S.asr);
+    $('selFmt').value = S.h24 ? '24' : '12';
+    $('chkSound').checked = !!S.sound;
+    for (var i = 0; i < 6; i++) $('adj' + i).value = S.adj[i];
+    $('inDecl').value = S.decl;
+    $('inLat').value = S.lat; $('inLon').value = S.lon; $('inTz').value = S.tz;
+    $('custom').hidden = sc.value !== 'Custom coordinates';
+    $('autoNote').hidden = !S.auto;
+  }
+  function applySettings() {
+    var city = $('selCity').value;
+    if (city === 'Custom coordinates') {
+      var la = parseFloat($('inLat').value), lo = parseFloat($('inLon').value);
+      if (!isNaN(la) && la >= -66 && la <= 66) S.lat = la;
+      if (!isNaN(lo) && lo >= -180 && lo <= 180) S.lon = lo;
+      S.tz = ($('inTz').value || '').trim() || browserTz;
+      S.city = 'Custom location';
+      S.auto = false; S.gps = false;
+    } else if (CITIES[city] === 'gps') {
+      S.auto = false; S.gps = true; S.city = 'My location (GPS)';
+      locate();
+    } else if (CITIES[city] === 'auto') {
+      S.gps = false;
+      applyAuto();
+      $('inLat').value = S.lat; $('inLon').value = S.lon; $('inTz').value = S.tz;
+    } else {
+      var c = CITIES[city];
+      S.auto = false; S.gps = false;
+      S.city = city; S.lat = c.lat; S.lon = c.lon; S.tz = c.tz;
+      $('inLat').value = S.lat; $('inLon').value = S.lon; $('inTz').value = S.tz;
+    }
+    $('custom').hidden = city !== 'Custom coordinates';
+    $('autoNote').hidden = !S.auto;
+    S.method = $('selMethod').value;
+    S.asr = +$('selAsr').value;
+    S.h24 = $('selFmt').value === '24';
+    S.sound = $('chkSound').checked;
+    S.decl = parseFloat($('inDecl').value) || 0;
+    S.adj = [0, 1, 2, 3, 4, 5].map(function (i) {
+      var v = parseInt($('adj' + i).value, 10);
+      return isNaN(v) ? 0 : Math.max(-60, Math.min(60, v));
+    });
+    safeTz(); fmtCache = {}; lastKey = ''; save();
+    refreshQibla(); tickTimes();
+    if (!$('v-calendar').hidden) renderCalendar();
+  }
+
+  // ---------- Tabs ----------
+  function show(v) {
+    ['times', 'compass', 'calendar', 'settings'].forEach(function (n) { $('v-' + n).hidden = n !== v; });
+    document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.v === v)); });
+    if (v === 'calendar') renderCalendar();
+    if (v === 'compass') { refreshQibla(); updateDial(); }
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('.tab').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.v); }); });
+
+  $('mPrev').addEventListener('click', function () { cal.m--; if (cal.m < 1) { cal.m = 12; cal.y--; } renderCalendar(); });
+  $('mNext').addEventListener('click', function () { cal.m++; if (cal.m > 12) { cal.m = 1; cal.y++; } renderCalendar(); });
+  ['selCity', 'inLat', 'inLon', 'inTz', 'selMethod', 'selAsr', 'selFmt', 'chkSound', 'adj0', 'adj1', 'adj2', 'adj3', 'adj4', 'adj5', 'inDecl'].forEach(function (id) {
+    $(id).addEventListener('change', applySettings);
+  });
+  $('btnTest').addEventListener('click', chime);
+  $('btnSensor').addEventListener('click', startSensor);
+  $('sldHeading').addEventListener('input', function (e) { if (!sensorOn) setHeading(+e.target.value); });
+
+  // ---------- GPS ----------
+  function nearestName(lat, lon) {
+    var best = null, bd = 1e9;
+    Object.keys(CITIES).forEach(function (n) {
+      var c = CITIES[n];
+      if (!c || typeof c !== 'object') return;
+      var dLat = (c.lat - lat) * D2R, dLon = (c.lon - lon) * D2R;
+      var a = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(lat * D2R) * Math.cos(c.lat * D2R) * Math.pow(Math.sin(dLon / 2), 2);
+      var d = 2 * 6371 * Math.asin(Math.sqrt(a));
+      if (d < bd) { bd = d; best = n; }
+    });
+    if (best && bd < 60) return 'Near ' + best.replace(/ \(Collin County\)/, '');
+    return lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°';
+  }
+  var toastT = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { t.hidden = true; }, 6000);
+  }
+  function locate() {
+    if (!navigator.geolocation) { toast('Location is not available on this device.'); return; }
+    navigator.geolocation.getCurrentPosition(function (p) {
+      S.gps = true; S.auto = false; S.city = 'My location (GPS)';
+      S.lat = p.coords.latitude; S.lon = p.coords.longitude; S.tz = curTz();
+      S.place = nearestName(S.lat, S.lon);
+      safeTz(); fmtCache = {}; lastKey = ''; save(); refreshQibla(); fillSettings();
+      if (!$('v-calendar').hidden) renderCalendar();
+      tickTimes();
+    }, function (err) {
+      toast(err && err.code === 1
+        ? 'Location is off for this site. Allow it in iPhone Settings > Privacy > Location Services > Safari Websites.'
+        : 'Could not get your location. Try again, or pick a city.');
+    }, { enableHighAccuracy: false, maximumAge: 600000, timeout: 15000 });
+  }
+
+  // ---------- City picker ----------
+  function renderPicker(q) {
+    var list = $('pickList');
+    list.innerHTML = '';
+    q = (q || '').trim().toLowerCase();
+    Object.keys(CITIES).forEach(function (name) {
+      if (name === 'Custom coordinates') return;
+      if (q && name.toLowerCase().indexOf(q) === -1) return;
+      var c = CITIES[name];
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pitem' + (S.city === name ? ' on' : '');
+      var s1 = document.createElement('span');
+      s1.textContent = name;
+      var s2 = document.createElement('small');
+      s2.textContent = c === 'auto' ? 'by time zone' : c === 'gps' ? 'exact · uses GPS' : c.tz.split('/').pop().replace(/_/g, ' ');
+      b.appendChild(s1); b.appendChild(s2);
+      b.addEventListener('click', function () {
+        $('selCity').value = name;
+        applySettings();
+        $('picker').hidden = true;
+      });
+      list.appendChild(b);
+    });
+    if (!list.children.length) {
+      var p = document.createElement('p');
+      p.className = 'note';
+      p.textContent = 'No match. Use Settings > Location > Custom coordinates for any other place.';
+      list.appendChild(p);
+    }
+  }
+  $('city').addEventListener('click', function () {
+    $('picker').hidden = false;
+    $('pickQ').value = '';
+    renderPicker('');
+  });
+  $('pickQ').addEventListener('input', function (e) { renderPicker(e.target.value); });
+  $('pickX').addEventListener('click', function () { $('picker').hidden = true; });
+
+  // ---------- Boot ----------
+  if (S.auto) applyAuto();
+  safeTz();
+  fillSettings();
+  buildDial();
+  refreshQibla();
+  tickTimes();
+  setInterval(tickTimes, 1000);
+  if (S.gps) locate();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && S.gps) locate(); });
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+})();
+</script>
+
+</body>
+</html>
