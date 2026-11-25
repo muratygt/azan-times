@@ -361,6 +361,23 @@ html, body { margin: 0; }
     'Istanbul, Turkey': { lat: 41.0082, lon: 28.9784, tz: 'Europe/Istanbul' },
     'Ankara, Turkey': { lat: 39.9334, lon: 32.8597, tz: 'Europe/Istanbul' },
     'Izmir, Turkey': { lat: 38.4237, lon: 27.1428, tz: 'Europe/Istanbul' },
+    'Berlin, Germany': { lat: 52.52, lon: 13.405, tz: 'Europe/Berlin' },
+    'Hamburg, Germany': { lat: 53.5511, lon: 9.9937, tz: 'Europe/Berlin' },
+    'Munich, Germany': { lat: 48.1351, lon: 11.582, tz: 'Europe/Berlin' },
+    'Cologne, Germany': { lat: 50.9375, lon: 6.9603, tz: 'Europe/Berlin' },
+    'Frankfurt, Germany': { lat: 50.1109, lon: 8.6821, tz: 'Europe/Berlin' },
+    'Stuttgart, Germany': { lat: 48.7758, lon: 9.1829, tz: 'Europe/Berlin' },
+    'Duesseldorf, Germany': { lat: 51.2277, lon: 6.7735, tz: 'Europe/Berlin' },
+    'Nuremberg, Germany': { lat: 49.4521, lon: 11.0767, tz: 'Europe/Berlin' },
+    'Paris, France': { lat: 48.8566, lon: 2.3522, tz: 'Europe/Paris' },
+    'Brussels, Belgium': { lat: 50.8503, lon: 4.3517, tz: 'Europe/Brussels' },
+    'Amsterdam, Netherlands': { lat: 52.3676, lon: 4.9041, tz: 'Europe/Amsterdam' },
+    'Vienna, Austria': { lat: 48.2082, lon: 16.3738, tz: 'Europe/Vienna' },
+    'Zurich, Switzerland': { lat: 47.3769, lon: 8.5417, tz: 'Europe/Zurich' },
+    'Madrid, Spain': { lat: 40.4168, lon: -3.7038, tz: 'Europe/Madrid' },
+    'Rome, Italy': { lat: 41.9028, lon: 12.4964, tz: 'Europe/Rome' },
+    'Stockholm, Sweden': { lat: 59.3293, lon: 18.0686, tz: 'Europe/Stockholm' },
+    'Sarajevo, Bosnia': { lat: 43.8563, lon: 18.4131, tz: 'Europe/Sarajevo' },
     'Makkah, Saudi Arabia': { lat: 21.4225, lon: 39.8262, tz: 'Asia/Riyadh' },
     'Madinah, Saudi Arabia': { lat: 24.4672, lon: 39.6111, tz: 'Asia/Riyadh' },
     'Dubai, UAE': { lat: 25.2048, lon: 55.2708, tz: 'Asia/Dubai' },
@@ -388,6 +405,11 @@ html, body { margin: 0; }
     'Europe/Rome': [41.9028, 12.4964, 'Rome, Italy'],
     'Europe/Amsterdam': [52.3676, 4.9041, 'Amsterdam'],
     'Europe/Istanbul': [41.0082, 28.9784, 'Istanbul, Turkey'],
+    'Europe/Brussels': [50.8503, 4.3517, 'Brussels, Belgium'],
+    'Europe/Vienna': [48.2082, 16.3738, 'Vienna, Austria'],
+    'Europe/Zurich': [47.3769, 8.5417, 'Zurich, Switzerland'],
+    'Europe/Stockholm': [59.3293, 18.0686, 'Stockholm, Sweden'],
+    'Europe/Sarajevo': [43.8563, 18.4131, 'Sarajevo, Bosnia'],
     'Asia/Istanbul': [41.0082, 28.9784, 'Istanbul, Turkey'],
     'Africa/Cairo': [30.0444, 31.2357, 'Cairo, Egypt'],
     'Africa/Casablanca': [33.5731, -7.5898, 'Casablanca'],
@@ -512,13 +534,27 @@ html, body { margin: 0; }
       return new Date(Math.ceil(ms / 60000) * 60000 + adj);
     }
     var maghribH = atAngle(0.833, 18 / 24, false);
+    // Northern Europe: in summer the sun may never get 17-18 degrees below the horizon.
+    // Angle-based rule: Fajr/Isha never fall further from sunrise/sunset than angle/60 of the night.
+    var sunriseH = atAngle(0.833, 6 / 24, true);
+    var fajrH = atAngle(meth.fajr, 5 / 24, true);
+    var ishaH = meth.ishaMin ? maghribH + meth.ishaMin / 60 : atAngle(meth.isha, 18 / 24, false);
+    if (!isNaN(sunriseH) && !isNaN(maghribH)) {
+      var night = fix(sunriseH - maghribH, 24);
+      var fMax = night * meth.fajr / 60;
+      if (isNaN(fajrH) || sunriseH - fajrH > fMax) fajrH = sunriseH - fMax;
+      if (!meth.ishaMin) {
+        var iMax = night * meth.isha / 60;
+        if (isNaN(ishaH) || ishaH - maghribH > iMax) ishaH = maghribH + iMax;
+      }
+    }
     var out = {
-      fajr: toDate(atAngle(meth.fajr, 5 / 24, true), 0),
-      sunrise: toDate(atAngle(0.833, 6 / 24, true), 1),
+      fajr: toDate(fajrH, 0),
+      sunrise: toDate(sunriseH, 1),
       dhuhr: toDate(mid(12 / 24), 2),
       asr: toDate(asrT(+S.asr, 13 / 24), 3),
       maghrib: toDate(maghribH, 4),
-      isha: toDate(meth.ishaMin ? maghribH + meth.ishaMin / 60 : atAngle(meth.isha, 18 / 24, false), 5)
+      isha: toDate(ishaH, 5)
     };
     cache[key] = out;
     return out;
