@@ -287,6 +287,7 @@ html, body { margin: 0; }
           </div>
           <div class="field"><label for="inTz">Time zone (IANA name)</label><input id="inTz" type="text" placeholder="America/Chicago"></div>
         </div>
+        <div class="field" id="nativeBox" hidden><label>Azan notifications</label><label class="switch" for="chkNotify"><span>Play the azan at prayer times<br><span class="note">Schedules the next 12 days. Open the app now and then to keep it topped up.</span></span><input id="chkNotify" type="checkbox"></label><button class="btn" id="btnTestAzan" type="button">Test the azan sound (5 seconds)</button><p class="note" id="notifyNote"></p></div>
         <div class="field"><label>My default setup</label><div class="defbtns"><button class="btn" id="btnSaveDef" type="button">Save current as default</button><button class="btn" id="btnUseDef" type="button">Go to my default</button></div><label class="switch" for="chkOpenDef"><span>Open on my default each time<br><span class="note">Otherwise the app reopens on whatever you used last.</span></span><input id="chkOpenDef" type="checkbox"></label><button class="btn" id="btnCopyLink" type="button">Copy link with these settings</button><p class="note">The address of this page always carries your current choices. Send it to a friend and they start with the same setup.</p></div>
         <div class="field"><label for="inDecl">Compass correction (degrees, true = magnetic + this)</label><input id="inDecl" type="number" step="0.5"><p class="note">Only affects the live compass. Dallas is roughly +3 to +4; check NOAA's magnetic declination calculator for your area.</p></div>
         <div class="field"><label for="selMethod">Calculation method</label><select id="selMethod"></select></div>
@@ -476,13 +477,13 @@ html, body { margin: 0; }
   var browserTz = 'America/Chicago';
   try { browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || browserTz; } catch (e) {}
 
-  var S = { city: 'Auto (follow phone time zone)', auto: true, gps: false, openDef: false, decl: 0, place: 'Dallas, TX area', lat: 32.7767, lon: -96.797, tz: 'America/Chicago', method: 'MWL', asr: 2, h24: true, sound: false, adj: [0, -7, 5, 4, 7, 0] };
+  var S = { city: 'Auto (follow phone time zone)', auto: true, gps: false, openDef: false, notify: true, decl: 0, place: 'Dallas, TX area', lat: 32.7767, lon: -96.797, tz: 'America/Chicago', method: 'MWL', asr: 2, h24: true, sound: false, adj: [0, -7, 5, 4, 7, 0] };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && typeof saved === 'object') { for (var k in saved) { if (k in S) S[k] = saved[k]; } }
     if (!Array.isArray(S.adj) || S.adj.length !== 6) S.adj = [0, -7, 5, 4, 7, 0];
   } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} syncUrl(); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} syncUrl(); if (typeof scheduleAzan === 'function') scheduleAzan(); }
 
   // ---------- Presets: link parameter and first-run defaults ----------
   // ?p=mainz  fixed Mainz, Diyanet, no precaution minutes
@@ -950,6 +951,7 @@ html, body { margin: 0; }
     for (var i = 0; i < 6; i++) $('adj' + i).value = S.adj[i];
     $('inDecl').value = S.decl;
     $('chkOpenDef').checked = !!S.openDef;
+    $('chkNotify').checked = !!S.notify;
     $('inLat').value = S.lat; $('inLon').value = S.lon; $('inTz').value = S.tz;
     $('custom').hidden = sc.value !== 'Custom coordinates';
     $('autoNote').hidden = !S.auto;
@@ -1096,6 +1098,56 @@ html, body { margin: 0; }
   tickTimes();
   setInterval(tickTimes, 1000);
   if (S.gps) locate();
+
+  // ---------- Native app: azan notifications ----------
+  var NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+  var LN = NATIVE && Capacitor.Plugins ? Capacitor.Plugins.LocalNotifications : null;
+  var notifyTimer = null;
+  function notifyNote(t) { var n = $('notifyNote'); if (n) n.textContent = t || ''; }
+  function scheduleAzan() {
+    if (!LN) return;
+    clearTimeout(notifyTimer);
+    notifyTimer = setTimeout(doSchedule, 1200);
+  }
+  function doSchedule() {
+    LN.getPending().then(function (r) {
+      var ids = (r.notifications || []).filter(function (n) { return n.id !== 9999; });
+      return ids.length ? LN.cancel({ notifications: ids }) : null;
+    }).then(function () {
+      if (!S.notify) { notifyNote('Azan notifications are off.'); return null; }
+      return LN.checkPermissions().then(function (p) {
+        if (p.display === 'prompt' || p.display === 'prompt-with-rationale') return LN.requestPermissions();
+        return p;
+      });
+    }).then(function (p) {
+      if (!S.notify || !p) return;
+      if (p.display !== 'granted') { notifyNote('Notifications are blocked. Turn them on in iPhone Settings > Notifications > Azan Times.'); return; }
+      var list = [], now = Date.now(), c0 = ymdIn(new Date(), S.tz), place = (S.auto || S.gps) ? S.place : S.city.replace(/ \(Collin County\)/, '');
+      for (var d = 0; d < 12; d++) {
+        var T = forDay(addDays(c0, d));
+        FIVE.forEach(function (k, i) {
+          var at = T[k];
+          if (isNaN(at) || at.getTime() <= now + 5000) return;
+          list.push({ id: d * 10 + i + 1, title: 'Time for ' + NAMES[k], body: place + ' · ' + fmt(at), schedule: { at: at, allowWhileIdle: true }, sound: 'azan.wav' });
+        });
+      }
+      return LN.schedule({ notifications: list }).then(function () { notifyNote(list.length + ' azan alerts scheduled.'); });
+    }).catch(function (e) { notifyNote('Could not schedule notifications.'); });
+  }
+  function initNative() {
+    if (!NATIVE || !LN) return;
+    $('nativeBox').hidden = false;
+    $('chkNotify').addEventListener('change', function () { S.notify = $('chkNotify').checked; save(); scheduleAzan(); });
+    $('btnTestAzan').addEventListener('click', function () {
+      LN.requestPermissions().then(function (p) {
+        if (p.display !== 'granted') { toast('Allow notifications first.'); return; }
+        return LN.schedule({ notifications: [{ id: 9999, title: 'Azan test', body: 'This is how the azan will sound.', schedule: { at: new Date(Date.now() + 5000) }, sound: 'azan.wav' }] })
+          .then(function () { toast('Test alert in 5 seconds. Lock the phone to try it.'); });
+      });
+    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) scheduleAzan(); });
+    scheduleAzan();
+  }
   function afterDefaultChange() {
     if (S.gps) locate(); else if (S.auto) applyAuto();
     safeTz(); fmtCache = {}; lastKey = ''; save(); refreshQibla(); fillSettings();
@@ -1111,6 +1163,7 @@ html, body { margin: 0; }
     if (loadDefault()) { afterDefaultChange(); toast('Back on your default setup.'); }
     else toast('No default saved yet. Choose your setup, then tap Save current as default.');
   });
+  initNative();
   $('chkOpenDef').addEventListener('change', function () { S.openDef = $('chkOpenDef').checked; save(); });
   $('btnCopyLink').addEventListener('click', function () {
     syncUrl();

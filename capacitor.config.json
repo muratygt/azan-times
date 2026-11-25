@@ -1,0 +1,9 @@
+{
+  "appId": "com.muratygt.azantimes",
+  "appName": "Azan Times",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#14141c"
+  }
+}

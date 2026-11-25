@@ -1,0 +1,16 @@
+{
+  "name": "azan-times",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Azan Times: prayer times, Qibla compass and azan notifications",
+  "scripts": {
+    "sync": "cap sync ios",
+    "open": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1"
+  }
+}
