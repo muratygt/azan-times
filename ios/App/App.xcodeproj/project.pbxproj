@@ -17,6 +17,9 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A2A2A2A2A2A2A2A2A2A2A202 /* azan.wav in Resources */ = {isa = PBXBuildFile; fileRef = A2A2A2A2A2A2A2A2A2A2A201 /* azan.wav */; };
+		A2A2A2A2A2A2A2A2A2A2A302 /* azan-fajr.wav in Resources */ = {isa = PBXBuildFile; fileRef = A2A2A2A2A2A2A2A2A2A2A301 /* azan-fajr.wav */; };
+		A2A2A2A2A2A2A2A2A2A2A402 /* azan-maghrib.wav in Resources */ = {isa = PBXBuildFile; fileRef = A2A2A2A2A2A2A2A2A2A2A401 /* azan-maghrib.wav */; };
+		A2A2A2A2A2A2A2A2A2A2A502 /* azan-isha.wav in Resources */ = {isa = PBXBuildFile; fileRef = A2A2A2A2A2A2A2A2A2A2A501 /* azan-isha.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +35,9 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A2A2A2A2A2A2A2A2A2A2A201 /* azan.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = azan.wav; sourceTree = "<group>"; };
+		A2A2A2A2A2A2A2A2A2A2A301 /* azan-fajr.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "azan-fajr.wav"; sourceTree = "<group>"; };
+		A2A2A2A2A2A2A2A2A2A2A401 /* azan-maghrib.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "azan-maghrib.wav"; sourceTree = "<group>"; };
+		A2A2A2A2A2A2A2A2A2A2A501 /* azan-isha.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "azan-isha.wav"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +81,9 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				A2A2A2A2A2A2A2A2A2A2A201 /* azan.wav */,
+				A2A2A2A2A2A2A2A2A2A2A301 /* azan-fajr.wav */,
+				A2A2A2A2A2A2A2A2A2A2A401 /* azan-maghrib.wav */,
+				A2A2A2A2A2A2A2A2A2A2A501 /* azan-isha.wav */,
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
@@ -152,6 +161,9 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 				A2A2A2A2A2A2A2A2A2A2A202 /* azan.wav in Resources */,
+				A2A2A2A2A2A2A2A2A2A2A302 /* azan-fajr.wav in Resources */,
+				A2A2A2A2A2A2A2A2A2A2A402 /* azan-maghrib.wav in Resources */,
+				A2A2A2A2A2A2A2A2A2A2A502 /* azan-isha.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -21,6 +21,8 @@ A free Apple ID can run the app on your own phone, but it expires after 7 days. 
 - Keep the file name `azan.wav`, then run it again from Xcode.
 - Use a recording you have the right to use.
 
+Each prayer can have its own sound. Fajr uses `azan-fajr.wav`, Maghrib `azan-maghrib.wav`, Isha `azan-isha.wav`, and Dhuhr and Asr use `azan.wav`. All follow the same rules as above. The files in the repo are placeholder chimes. Each tap on "Test the azan sound" plays the next prayer's sound.
+
 ## How the alerts work
 
 The app schedules the next 12 days of alerts on the phone. iPhone allows about 64 at once. Opening the app tops it up, so open it at least every 12 days. Changing the city or settings reschedules everything.

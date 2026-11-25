@@ -1110,6 +1110,10 @@ html, body { margin: 0; }
   var LN = NATIVE && Capacitor.Plugins ? Capacitor.Plugins.LocalNotifications : null;
   var notifyTimer = null;
   function notifyNote(t) { var n = $('notifyNote'); if (n) n.textContent = t || ''; }
+  // Sound files live in ios/App/App. Prayers not listed here use azan.wav.
+  var SOUNDS = { fajr: 'azan-fajr.wav', maghrib: 'azan-maghrib.wav', isha: 'azan-isha.wav' };
+  function soundFor(k) { return SOUNDS[k] || 'azan.wav'; }
+  var testIdx = 0;
   function scheduleAzan() {
     if (!LN) return;
     clearTimeout(notifyTimer);
@@ -1134,7 +1138,7 @@ html, body { margin: 0; }
         FIVE.forEach(function (k, i) {
           var at = T[k];
           if (isNaN(at) || at.getTime() <= now + 5000) return;
-          list.push({ id: d * 10 + i + 1, title: 'Time for ' + NAMES[k], body: place + ' · ' + fmt(at), schedule: { at: at, allowWhileIdle: true }, sound: 'azan.wav' });
+          list.push({ id: d * 10 + i + 1, title: 'Time for ' + NAMES[k], body: place + ' · ' + fmt(at), schedule: { at: at, allowWhileIdle: true }, sound: soundFor(k) });
         });
       }
       return LN.schedule({ notifications: list }).then(function () { notifyNote(list.length + ' azan alerts scheduled.'); });
@@ -1147,8 +1151,10 @@ html, body { margin: 0; }
     $('btnTestAzan').addEventListener('click', function () {
       LN.requestPermissions().then(function (p) {
         if (p.display !== 'granted') { toast('Allow notifications first.'); return; }
-        return LN.schedule({ notifications: [{ id: 9999, title: 'Azan test', body: 'This is how the azan will sound.', schedule: { at: new Date(Date.now() + 5000) }, sound: 'azan.wav' }] })
-          .then(function () { toast('Test alert in 5 seconds. Lock the phone to try it.'); });
+        // Each tap tests the next prayer's sound.
+        var k = FIVE[testIdx++ % FIVE.length];
+        return LN.schedule({ notifications: [{ id: 9999, title: 'Azan test: ' + NAMES[k], body: 'This is how the ' + NAMES[k] + ' azan will sound.', schedule: { at: new Date(Date.now() + 5000) }, sound: soundFor(k) }] })
+          .then(function () { toast(NAMES[k] + ' test alert in 5 seconds. Lock the phone to try it.'); });
       });
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) scheduleAzan(); });
