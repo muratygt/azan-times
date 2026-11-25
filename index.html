@@ -482,6 +482,43 @@ html, body { margin: 0; }
   } catch (e) {}
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
+  // ---------- Presets: link parameter and first-run defaults ----------
+  // ?p=mainz  fixed Mainz, Diyanet, no precaution minutes
+  // ?p=germany  follows the phone's GPS, Diyanet, no precaution minutes
+  // ?p=wylie  the original Wylie setup
+  var PRESETS = {
+    mainz: { city: 'Mainz, Germany', method: 'DIYANET', asr: 1, adj: [0, 0, 0, 0, 0, 0] },
+    germany: { city: 'gps', method: 'DIYANET', asr: 1, adj: [0, 0, 0, 0, 0, 0] },
+    wylie: { city: 'Wylie, TX (Collin County)', method: 'MWL', asr: 2, adj: [0, -7, 5, 4, 7, 0] }
+  };
+  function usePreset(p) {
+    S.method = p.method; S.asr = p.asr; S.adj = p.adj.slice();
+    var c = CITIES[p.city];
+    if (c && typeof c === 'object') {
+      S.auto = false; S.gps = false; S.city = p.city; S.lat = c.lat; S.lon = c.lon; S.tz = c.tz;
+    } else {
+      var z = browserTz, t = TZ_COORDS[z];
+      if (t) { S.lat = t[0]; S.lon = t[1]; S.place = t[2]; }
+      S.tz = z; S.auto = false; S.gps = true; S.city = 'My location (GPS)';
+    }
+  }
+  (function () {
+    var q = '', seen = null, firstRun = false;
+    try { q = (new URLSearchParams(location.search).get('p') || '').toLowerCase(); } catch (e) {}
+    try { seen = localStorage.getItem('azan-times-preset'); firstRun = localStorage.getItem(KEY) === null; } catch (e) {}
+    if (q && PRESETS[q]) {
+      // a link applies its preset once; later changes in Settings are kept
+      if (seen !== q) {
+        usePreset(PRESETS[q]);
+        try { localStorage.setItem('azan-times-preset', q); } catch (e) {}
+        save();
+      }
+    } else if (firstRun && /^Europe\//.test(browserTz) && browserTz !== 'Europe/London') {
+      usePreset(PRESETS.germany);
+      save();
+    }
+  })();
+
   // ---------- Prayer time maths ----------
   var D2R = Math.PI / 180, R2D = 180 / Math.PI;
   function sin(d) { return Math.sin(d * D2R); }
