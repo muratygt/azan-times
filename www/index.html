@@ -473,6 +473,8 @@ html, body { margin: 0; }
   var FIVE = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
   var KAABA = { lat: 21.4225, lon: 39.8262 };
   var KEY = 'azan-times-settings';
+  var NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+  var SITE = 'https://azan-times-app.netlify.app/';
 
   var browserTz = 'America/Chicago';
   try { browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || browserTz; } catch (e) {}
@@ -891,21 +893,24 @@ html, body { margin: 0; }
     }
     setHeading(h);
   }
+  var COMPASS_HELP = NATIVE
+    ? 'No compass data yet. Close Azan Times completely, open it again, and allow motion access when asked.'
+    : 'No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload.';
   function startSensor() {
     var msg = $('sensorMsg');
     try {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission().then(function (r) {
-          if (r === 'granted') { attach(); } else { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; }
-        }).catch(function () { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; });
+          if (r === 'granted') { attach(); } else { msg.textContent = COMPASS_HELP; }
+        }).catch(function () { msg.textContent = COMPASS_HELP; });
       } else { attach(); }
-    } catch (e) { msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload."; }
+    } catch (e) { msg.textContent = COMPASS_HELP; }
     function attach() {
       window.addEventListener('deviceorientationabsolute', onOrient, true);
       window.addEventListener('deviceorientation', onOrient, true);
       msg.textContent = 'Waiting for compass data...';
       setTimeout(function () {
-        if (!sensorOn) msg.textContent = "No compass data yet. Allow Motion & Orientation access when asked. On iPhone: Settings > Safari > Motion & Orientation Access, then reload.";
+        if (!sensorOn) msg.textContent = COMPASS_HELP;
       }, 2500);
     }
   }
@@ -1045,7 +1050,9 @@ html, body { margin: 0; }
       tickTimes();
     }, function (err) {
       toast(err && err.code === 1
-        ? 'Location is off for this site. Allow it in iPhone Settings > Privacy > Location Services > Safari Websites.'
+        ? (NATIVE
+          ? 'Location is off for Azan Times. Allow it in iPhone Settings > Privacy & Security > Location Services > Azan Times.'
+          : 'Location is off for this site. Allow it in iPhone Settings > Privacy > Location Services > Safari Websites.')
         : 'Could not get your location. Try again, or pick a city.');
     }, { enableHighAccuracy: false, maximumAge: 600000, timeout: 15000 });
   }
@@ -1100,7 +1107,6 @@ html, body { margin: 0; }
   if (S.gps) locate();
 
   // ---------- Native app: azan notifications ----------
-  var NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
   var LN = NATIVE && Capacitor.Plugins ? Capacitor.Plugins.LocalNotifications : null;
   var notifyTimer = null;
   function notifyNote(t) { var n = $('notifyNote'); if (n) n.textContent = t || ''; }
@@ -1167,10 +1173,11 @@ html, body { margin: 0; }
   $('chkOpenDef').addEventListener('change', function () { S.openDef = $('chkOpenDef').checked; save(); });
   $('btnCopyLink').addEventListener('click', function () {
     syncUrl();
-    var u = location.href;
+    var u = NATIVE ? SITE + location.search : location.href;
+    var failed = NATIVE ? 'Could not copy the link.' : 'Copy the address from your browser bar.';
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(u).then(function () { toast('Link copied. Send it to anyone.'); }, function () { toast('Copy the address from your browser bar.'); });
-    } else { toast('Copy the address from your browser bar.'); }
+      navigator.clipboard.writeText(u).then(function () { toast('Link copied. Send it to anyone.'); }, function () { toast(failed); });
+    } else { toast(failed); }
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && S.gps) locate(); });
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
