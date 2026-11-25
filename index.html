@@ -178,6 +178,7 @@ html, body { margin: 0; }
 .view { padding-bottom: 190px; }
 .toast { bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: min(88vw, 480px); background: #34303f; color: var(--fg); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); z-index: 40; font-size: 0.9rem; }
+.defbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 </style>
 </head>
 <body>
@@ -286,6 +287,7 @@ html, body { margin: 0; }
           </div>
           <div class="field"><label for="inTz">Time zone (IANA name)</label><input id="inTz" type="text" placeholder="America/Chicago"></div>
         </div>
+        <div class="field"><label>My default setup</label><div class="defbtns"><button class="btn" id="btnSaveDef" type="button">Save current as default</button><button class="btn" id="btnUseDef" type="button">Go to my default</button></div><label class="switch" for="chkOpenDef"><span>Open on my default each time<br><span class="note">Otherwise the app reopens on whatever you used last.</span></span><input id="chkOpenDef" type="checkbox"></label><button class="btn" id="btnCopyLink" type="button">Copy link with these settings</button><p class="note">The address of this page always carries your current choices. Send it to a friend and they start with the same setup.</p></div>
         <div class="field"><label for="inDecl">Compass correction (degrees, true = magnetic + this)</label><input id="inDecl" type="number" step="0.5"><p class="note">Only affects the live compass. Dallas is roughly +3 to +4; check NOAA's magnetic declination calculator for your area.</p></div>
         <div class="field"><label for="selMethod">Calculation method</label><select id="selMethod"></select></div>
         <div class="field"><label for="selAsr">Asr calculation</label>
@@ -474,13 +476,13 @@ html, body { margin: 0; }
   var browserTz = 'America/Chicago';
   try { browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || browserTz; } catch (e) {}
 
-  var S = { city: 'Auto (follow phone time zone)', auto: true, gps: false, decl: 0, place: 'Dallas, TX area', lat: 32.7767, lon: -96.797, tz: 'America/Chicago', method: 'MWL', asr: 2, h24: true, sound: false, adj: [0, -7, 5, 4, 7, 0] };
+  var S = { city: 'Auto (follow phone time zone)', auto: true, gps: false, openDef: false, decl: 0, place: 'Dallas, TX area', lat: 32.7767, lon: -96.797, tz: 'America/Chicago', method: 'MWL', asr: 2, h24: true, sound: false, adj: [0, -7, 5, 4, 7, 0] };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && typeof saved === 'object') { for (var k in saved) { if (k in S) S[k] = saved[k]; } }
     if (!Array.isArray(S.adj) || S.adj.length !== 6) S.adj = [0, -7, 5, 4, 7, 0];
   } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} syncUrl(); }
 
   // ---------- Presets: link parameter and first-run defaults ----------
   // ?p=mainz  fixed Mainz, Diyanet, no precaution minutes
@@ -502,21 +504,54 @@ html, body { margin: 0; }
       S.tz = z; S.auto = false; S.gps = true; S.city = 'My location (GPS)';
     }
   }
-  (function () {
-    var q = '', seen = null, firstRun = false;
-    try { q = (new URLSearchParams(location.search).get('p') || '').toLowerCase(); } catch (e) {}
-    try { seen = localStorage.getItem('azan-times-preset'); firstRun = localStorage.getItem(KEY) === null; } catch (e) {}
-    if (q && PRESETS[q]) {
-      // a link applies its preset once; later changes in Settings are kept
-      if (seen !== q) {
-        usePreset(PRESETS[q]);
-        try { localStorage.setItem('azan-times-preset', q); } catch (e) {}
-        save();
-      }
-    } else if (firstRun && /^Europe\//.test(browserTz) && browserTz !== 'Europe/London') {
-      usePreset(PRESETS.germany);
-      save();
+  function syncUrl() {
+    try {
+      var p = new URLSearchParams();
+      p.set('c', S.gps ? 'gps' : S.auto ? 'auto' : S.city === 'Custom location' ? 'custom' : S.city);
+      if (!S.gps && !S.auto && S.city === 'Custom location') { p.set('lat', S.lat); p.set('lon', S.lon); p.set('tz', S.tz); }
+      p.set('m', S.method); p.set('a', S.asr); p.set('adj', S.adj.join(',')); p.set('f', S.h24 ? 24 : 12);
+      history.replaceState(null, '', location.pathname + '?' + p.toString().replace(/%2C/g, ','));
+    } catch (e) {}
+  }
+  function applyParams(q) {
+    var c = q.get('c');
+    if (c === 'gps') { usePreset({ city: 'gps', method: S.method, asr: S.asr, adj: S.adj }); }
+    else if (c === 'auto') { S.auto = true; S.gps = false; S.city = 'Auto (follow phone time zone)'; }
+    else if (c === 'custom') {
+      var la = parseFloat(q.get('lat')), lo = parseFloat(q.get('lon'));
+      if (!isNaN(la) && !isNaN(lo)) { S.lat = la; S.lon = lo; S.tz = q.get('tz') || browserTz; S.city = 'Custom location'; S.auto = false; S.gps = false; }
+    } else if (c && CITIES[c] && typeof CITIES[c] === 'object') {
+      usePreset({ city: c, method: S.method, asr: S.asr, adj: S.adj });
     }
+    if (q.get('m') && METHODS[q.get('m')]) S.method = q.get('m');
+    if (q.get('a') === '1' || q.get('a') === '2') S.asr = +q.get('a');
+    if (q.get('adj')) {
+      var a = q.get('adj').split(',').map(function (x) { var v = parseInt(x, 10); return isNaN(v) ? 0 : Math.max(-60, Math.min(60, v)); });
+      if (a.length === 6) S.adj = a;
+    }
+    if (q.get('f') === '12' || q.get('f') === '24') S.h24 = q.get('f') === '24';
+  }
+  var DEFKEY = 'azan-times-default';
+  var DEFFIELDS = ['city', 'auto', 'gps', 'place', 'lat', 'lon', 'tz', 'method', 'asr', 'adj', 'h24'];
+  function loadDefault() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DEFKEY) || 'null');
+      if (!d || typeof d !== 'object') return false;
+      DEFFIELDS.forEach(function (k) { if (k in d) S[k] = d[k]; });
+      if (!Array.isArray(S.adj) || S.adj.length !== 6) S.adj = [0, 0, 0, 0, 0, 0];
+      return true;
+    } catch (e) { return false; }
+  }
+  (function () {
+    var q = null, firstRun = false;
+    try { q = new URLSearchParams(location.search); } catch (e) {}
+    try { firstRun = localStorage.getItem(KEY) === null; } catch (e) {}
+    var pp = q && (q.get('p') || '').toLowerCase();
+    if (q && q.get('c')) { applyParams(q); save(); }
+    else if (pp && PRESETS[pp]) { usePreset(PRESETS[pp]); save(); }
+    else if (S.openDef && loadDefault()) { save(); }
+    else if (firstRun && /^Europe\//.test(browserTz) && browserTz !== 'Europe/London') { usePreset(PRESETS.germany); save(); }
+    else { syncUrl(); }
   })();
 
   // ---------- Prayer time maths ----------
@@ -914,6 +949,7 @@ html, body { margin: 0; }
     $('chkSound').checked = !!S.sound;
     for (var i = 0; i < 6; i++) $('adj' + i).value = S.adj[i];
     $('inDecl').value = S.decl;
+    $('chkOpenDef').checked = !!S.openDef;
     $('inLat').value = S.lat; $('inLon').value = S.lon; $('inTz').value = S.tz;
     $('custom').hidden = sc.value !== 'Custom coordinates';
     $('autoNote').hidden = !S.auto;
@@ -1060,6 +1096,29 @@ html, body { margin: 0; }
   tickTimes();
   setInterval(tickTimes, 1000);
   if (S.gps) locate();
+  function afterDefaultChange() {
+    if (S.gps) locate(); else if (S.auto) applyAuto();
+    safeTz(); fmtCache = {}; lastKey = ''; save(); refreshQibla(); fillSettings();
+    if (!$('v-calendar').hidden) renderCalendar();
+    tickTimes();
+  }
+  $('btnSaveDef').addEventListener('click', function () {
+    var d = {}; DEFFIELDS.forEach(function (k) { d[k] = S[k]; });
+    try { localStorage.setItem(DEFKEY, JSON.stringify(d)); toast('Saved. "' + ((S.auto || S.gps) ? S.place : S.city.replace(/ \(Collin County\)/, '')) + '" is now your default.'); }
+    catch (e) { toast('Could not save on this device.'); }
+  });
+  $('btnUseDef').addEventListener('click', function () {
+    if (loadDefault()) { afterDefaultChange(); toast('Back on your default setup.'); }
+    else toast('No default saved yet. Choose your setup, then tap Save current as default.');
+  });
+  $('chkOpenDef').addEventListener('change', function () { S.openDef = $('chkOpenDef').checked; save(); });
+  $('btnCopyLink').addEventListener('click', function () {
+    syncUrl();
+    var u = location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(u).then(function () { toast('Link copied. Send it to anyone.'); }, function () { toast('Copy the address from your browser bar.'); });
+    } else { toast('Copy the address from your browser bar.'); }
+  });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && S.gps) locate(); });
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 })();
