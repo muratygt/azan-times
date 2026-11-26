@@ -1141,7 +1141,11 @@ html, body { margin: 0; }
           list.push({ id: d * 10 + i + 1, title: 'Time for ' + NAMES[k], body: place + ' · ' + fmt(at), schedule: { at: at, allowWhileIdle: true }, sound: soundFor(k) });
         });
       }
-      return LN.schedule({ notifications: list }).then(function () { notifyNote(list.length + ' azan alerts scheduled.'); });
+      var count = list.length;
+      // Only 12 days fit on the phone: remind about 2 days before they run out. Opening the app moves this forward.
+      var remindAt = new Date(+forDay(addDays(c0, 9)).dhuhr + 3600000);
+      list.push({ id: 9998, title: 'Open Azan Times', body: 'Open the app to keep your azan alerts coming. They run out in about 2 days.', schedule: { at: remindAt, allowWhileIdle: true }, sound: 'default' });
+      return LN.schedule({ notifications: list }).then(function () { notifyNote(count + ' azan alerts scheduled.'); });
     }).catch(function (e) { notifyNote('Could not schedule notifications.'); });
   }
   function initNative() {

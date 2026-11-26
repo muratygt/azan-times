@@ -25,7 +25,7 @@ Each prayer can have its own sound. Fajr uses `azan-fajr.wav`, Maghrib `azan-mag
 
 ## How the alerts work
 
-The app schedules the next 12 days of alerts on the phone. iPhone allows about 64 at once. Opening the app tops it up, so open it at least every 12 days. Changing the city or settings reschedules everything.
+The app schedules the next 12 days of alerts on the phone. iPhone allows about 64 at once. Opening the app tops it up, so open it at least every 12 days. On the 10th day a reminder notification asks you to open it. Changing the city or settings reschedules everything.
 
 ## Updating the app
 
